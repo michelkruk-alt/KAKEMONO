@@ -2,30 +2,49 @@
 
 Prototype de site multipages pour KAKEMONO Events en PHP, MySQL/SQLite, Bootstrap et jQuery.
 
+## Configuration
+
+Copiez le fichier modèle et renseignez vos paramètres :
+
+```bash
+cp includes/config.sample.php includes/config.php
+```
+
+Éditez ensuite `includes/config.php` :
+
+```php
+define('DB_DRIVER', 'mysql');          // 'mysql' ou 'sqlite'
+define('DB_HOST',     'localhost');
+define('DB_PORT',     '3306');
+define('DB_NAME',     'votre_base_ovh');
+define('DB_USER',     'votre_utilisateur');
+define('DB_PASSWORD', 'votre_mot_de_passe');
+define('DB_CHARSET',  'utf8mb4');
+```
+
+> **Important :** `includes/config.php` est ignoré par git et ne doit jamais être versionné.
+
+Le schéma est créé automatiquement au premier lancement.
+
 ## Démarrage local
 
 ### Mode MySQL (OVH recommandé)
 
-Configurer les variables d’environnement avant de lancer PHP :
+Après avoir configuré `includes/config.php` (voir ci-dessus) :
 
 ```bash
-export DB_DRIVER=mysql
-export DB_HOST=localhost
-export DB_PORT=3306
-export DB_NAME=votre_base_ovh
-export DB_USER=votre_utilisateur_ovh
-export DB_PASSWORD=votre_mot_de_passe_ovh
-export DB_CHARSET=utf8mb4
-```
-
-Le schéma est créé automatiquement au premier lancement.
-
-### Mode SQLite (fallback local)
-
-```bash
-export DB_DRIVER=sqlite
 php -S 127.0.0.1:8000
 ```
+
+### Mode SQLite (développement local)
+
+Dans `includes/config.php`, remplacez `'mysql'` par `'sqlite'` :
+
+```php
+define('DB_DRIVER', 'sqlite');
+```
+
+Puis :
 
 Puis ouvrir `http://127.0.0.1:8000/index.php`.
 
@@ -48,6 +67,6 @@ Puis ouvrir `http://127.0.0.1:8000/index.php`.
 
 ## Stockage
 
-- base MySQL (OVH) : via variables `DB_*`
+- base MySQL (OVH) : paramètres dans `includes/config.php`
 - base SQLite locale (optionnelle) : `data/kakemono.sqlite`
 - uploads : `uploads/`

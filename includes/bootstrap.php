@@ -19,15 +19,15 @@ const CART_HOLD_DURATION_SECONDS = 900;
 const MAX_UPLOAD_SIZE_BYTES = 5_242_880;
 
 const ROOT_PATH = __DIR__ . '/..';
-const DB_DRIVER = 'mysql';
-const DB_HOST = 'localhost';
-const DB_PORT = '3306';
-const DB_NAME = 'kakemono';
-const DB_USER = 'kakemono';
-const DB_PASSWORD = '';
-const DB_CHARSET = 'utf8mb4';
 const DB_PATH = ROOT_PATH . '/data/kakemono.sqlite';
 const UPLOAD_DIR = ROOT_PATH . '/uploads';
+
+$_configFile = __DIR__ . '/config.php';
+if (!file_exists($_configFile)) {
+    exit('Fichier de configuration manquant. Copiez includes/config.sample.php en includes/config.php et renseignez vos paramètres.');
+}
+require_once $_configFile;
+unset($_configFile);
 
 if (!is_dir(UPLOAD_DIR)) {
     mkdir(UPLOAD_DIR, 0777, true);
@@ -41,25 +41,13 @@ initialize_schema($pdo);
 seed_defaults($pdo);
 purge_expired_holds($pdo);
 
-function env_value(string $key, string $default): string
-{
-    $value = getenv($key);
-    return $value !== false && $value !== '' ? $value : $default;
-}
-
 function connect_database(): PDO
 {
-    $driver = strtolower(env_value('DB_DRIVER', DB_DRIVER));
+    $driver = strtolower(DB_DRIVER);
 
     if ($driver === 'mysql') {
-        $host = env_value('DB_HOST', DB_HOST);
-        $port = env_value('DB_PORT', DB_PORT);
-        $name = env_value('DB_NAME', DB_NAME);
-        $user = env_value('DB_USER', DB_USER);
-        $password = env_value('DB_PASSWORD', DB_PASSWORD);
-        $charset = env_value('DB_CHARSET', DB_CHARSET);
-        $dsn = sprintf('mysql:host=%s;port=%s;dbname=%s;charset=%s', $host, $port, $name, $charset);
-        return new PDO($dsn, $user, $password);
+        $dsn = sprintf('mysql:host=%s;port=%s;dbname=%s;charset=%s', DB_HOST, DB_PORT, DB_NAME, DB_CHARSET);
+        return new PDO($dsn, DB_USER, DB_PASSWORD);
     }
 
     $directory = dirname(DB_PATH);
