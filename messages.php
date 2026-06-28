@@ -3,9 +3,13 @@ require_once __DIR__ . '/includes/layout.php';
 $user = require_login();
 
 if (is_privileged($user)) {
-    $contacts = $pdo->query('SELECT id, first_name, last_name, email FROM users WHERE id != ' . (int) $user['id'] . ' ORDER BY last_name, first_name')->fetchAll();
+    $stmt = $pdo->prepare('SELECT id, first_name, last_name, email FROM users WHERE id != ? ORDER BY last_name, first_name');
+    $stmt->execute([(int) $user['id']]);
+    $contacts = $stmt->fetchAll();
 } else {
-    $contacts = $pdo->query('SELECT id, first_name, last_name, email FROM users WHERE role_level IN (0, 3) AND status = "active" ORDER BY role_level, last_name')->fetchAll();
+    $stmt = $pdo->prepare('SELECT id, first_name, last_name, email FROM users WHERE role_level IN (?, ?) AND status = ? ORDER BY role_level, last_name');
+    $stmt->execute([ROLE_ADMIN, ROLE_MODERATOR, 'active']);
+    $contacts = $stmt->fetchAll();
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

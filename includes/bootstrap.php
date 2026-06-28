@@ -15,6 +15,8 @@ const RES_CART = 'cart';
 const RES_PENDING = 'pending_admin';
 const RES_APPROVED = 'approved';
 const RES_REJECTED = 'rejected';
+const CART_HOLD_DURATION_SECONDS = 900;
+const MAX_UPLOAD_SIZE_BYTES = 5_242_880;
 
 const ROOT_PATH = __DIR__ . '/..';
 const DB_PATH = ROOT_PATH . '/data/kakemono.sqlite';
@@ -447,13 +449,19 @@ function purge_expired_holds(PDO $pdo): void
 
 function dossier_fee_for_date(string $date): float
 {
-    if ($date >= date('Y') . '-05-01') {
+    $targetDate = new DateTimeImmutable($date);
+    $year = $targetDate->format('Y');
+    $mayThreshold = new DateTimeImmutable($year . '-05-01');
+    $aprilThreshold = new DateTimeImmutable($year . '-04-01');
+    $januaryThreshold = new DateTimeImmutable($year . '-01-01');
+
+    if ($targetDate >= $mayThreshold) {
         return 200.0;
     }
-    if ($date >= date('Y') . '-04-01') {
+    if ($targetDate >= $aprilThreshold) {
         return 100.0;
     }
-    if ($date >= date('Y') . '-01-01') {
+    if ($targetDate >= $januaryThreshold) {
         return 50.0;
     }
     return 0.0;
@@ -467,6 +475,10 @@ function handle_image_upload(string $field, string $targetFolder): ?string
 
     if (!is_dir(UPLOAD_DIR . '/' . $targetFolder)) {
         mkdir(UPLOAD_DIR . '/' . $targetFolder, 0777, true);
+    }
+
+    if (($_FILES[$field]['size'] ?? 0) > MAX_UPLOAD_SIZE_BYTES) {
+        throw new RuntimeException('Le fichier est trop volumineux (maximum 5 Mo).');
     }
 
     $tmpName = $_FILES[$field]['tmp_name'];
@@ -625,4 +637,9 @@ function reservation_status_label(string $status): string
         RES_REJECTED => 'Refusée',
         default => $status,
     };
+}
+
+function generate_invoice_number(int $reservationId): string
+{
+    return 'KAK-' . date('Y') . '-' . str_pad((string) $reservationId, 4, '0', STR_PAD_LEFT);
 }

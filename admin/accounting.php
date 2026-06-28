@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $paymentSchedule = trim($_POST['payment_schedule'] ?? '');
     $currentReservation = get_reservation($pdo, $reservationId);
     $invoiceNumber = $currentReservation && $status === RES_APPROVED
-        ? ($currentReservation['invoice_number'] ?: 'KAK-' . date('Y') . '-' . str_pad((string) $reservationId, 4, '0', STR_PAD_LEFT))
+        ? ($currentReservation['invoice_number'] ?: generate_invoice_number($reservationId))
         : ($currentReservation['invoice_number'] ?? null);
     $stmt = $pdo->prepare('UPDATE reservations SET status = ?, payment_method = ?, payment_schedule = ?, invoice_number = ?, approved_by = ?, approved_at = ?, updated_at = ? WHERE id = ?');
     $stmt->execute([$status, $paymentMethod, $paymentSchedule, $invoiceNumber, (int) $current['id'], $status === RES_APPROVED ? now() : null, now(), $reservationId]);

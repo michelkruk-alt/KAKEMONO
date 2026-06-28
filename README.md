@@ -25,6 +25,7 @@ Puis ouvrir `http://127.0.0.1:8000/index.php`.
 - validation des demandes avec mode de règlement, échéancier et facture PDF
 - messagerie interne, livre d’or visiteurs et page tactile
 - file d’attente mail locale (`mail_queue`) si aucun SMTP n’est disponible
+- export PDF simple intégré en natif pour documents textuels courts
 
 ## Stockage
 

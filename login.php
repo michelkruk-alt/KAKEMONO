@@ -9,9 +9,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt = $pdo->prepare('SELECT * FROM users WHERE email = ? LIMIT 1');
     $stmt->execute([$email]);
     $user = $stmt->fetch();
+    $userId = is_array($user) ? (int) $user['id'] : null;
 
     if (!$user || !password_verify($password, $user['password_hash'])) {
-        record_login($pdo, $user['id'] ?? null, $email, 'failed');
+        record_login($pdo, $userId, $email, 'failed');
         set_flash('danger', 'Identifiants invalides.');
     } elseif ($user['status'] !== 'active' || (int) $user['role_level'] === ROLE_DISABLED) {
         record_login($pdo, (int) $user['id'], $email, 'blocked');

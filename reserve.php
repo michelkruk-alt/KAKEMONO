@@ -47,7 +47,7 @@ if ($action === 'add') {
             $standId,
             (int) $user['id'],
             RES_CART,
-            date('Y-m-d H:i:s', time() + 900),
+            date('Y-m-d H:i:s', time() + CART_HOLD_DURATION_SECONDS),
             trim($_POST['presentation_text'] ?? ''),
             isset($_POST['ai_sourced']) ? 1 : 0,
             $imagePath,
