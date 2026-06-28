@@ -37,7 +37,10 @@ render_header('Connexion');
                     <div><label class="form-label">E-mail</label><input type="email" name="email" class="form-control" required></div>
                     <div><label class="form-label">Mot de passe</label><input type="password" name="password" class="form-control" required></div>
                     <button class="btn btn-primary">Se connecter</button>
-                    <small class="text-muted">Démo admin : admin@kakemono.local / Admin123!</small>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a class="small" href="/forgot_password.php">Mot de passe oublié ?</a>
+                        <small class="text-muted">Démo admin : admin@kakemono.local / Admin123!</small>
+                    </div>
                 </form>
             </div>
         </div>

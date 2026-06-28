@@ -238,6 +238,16 @@ function initialize_schema(PDO $pdo): void
             CONSTRAINT fk_visitor_feedback_event FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE,
             CONSTRAINT fk_visitor_feedback_stand FOREIGN KEY(stand_id) REFERENCES event_stands(id) ON DELETE SET NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+        CREATE TABLE IF NOT EXISTS password_resets (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            token VARCHAR(64) NOT NULL UNIQUE,
+            expires_at DATETIME NOT NULL,
+            used_at DATETIME NULL,
+            created_at DATETIME NOT NULL,
+            CONSTRAINT fk_password_resets_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         SQL);
         return;
     }
@@ -409,6 +419,16 @@ function initialize_schema(PDO $pdo): void
             created_at TEXT NOT NULL,
             FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE,
             FOREIGN KEY(stand_id) REFERENCES event_stands(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS password_resets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token TEXT NOT NULL UNIQUE,
+            expires_at TEXT NOT NULL,
+            used_at TEXT DEFAULT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         );
     SQL);
 }
@@ -847,4 +867,28 @@ function reservation_status_label(string $status): string
 function generate_invoice_number(int $reservationId): string
 {
     return 'KAK-' . date('Y') . '-' . str_pad((string) $reservationId, 4, '0', STR_PAD_LEFT);
+}
+
+function create_password_reset(PDO $pdo, int $userId): string
+{
+    $token = bin2hex(random_bytes(32));
+    $expires = date('Y-m-d H:i:s', time() + 3600);
+    $pdo->prepare('DELETE FROM password_resets WHERE user_id = ?')->execute([$userId]);
+    $pdo->prepare('INSERT INTO password_resets (user_id, token, expires_at, created_at) VALUES (?, ?, ?, ?)')->execute([$userId, $token, $expires, now()]);
+    return $token;
+}
+
+function consume_password_reset(PDO $pdo, string $token): ?int
+{
+    $stmt = $pdo->prepare('SELECT * FROM password_resets WHERE token = ? AND used_at IS NULL LIMIT 1');
+    $stmt->execute([$token]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        return null;
+    }
+    if ($row['expires_at'] < now()) {
+        return null;
+    }
+    $pdo->prepare('UPDATE password_resets SET used_at = ? WHERE id = ?')->execute([now(), (int) $row['id']]);
+    return (int) $row['user_id'];
 }
