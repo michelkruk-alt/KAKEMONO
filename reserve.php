@@ -103,7 +103,7 @@ if ($action === 'confirm') {
     $pdo->prepare('UPDATE reservations SET status = ?, dossier_fee = ?, terms_accepted = 1, hold_expires_at = NULL, updated_at = ? WHERE id = ?')->execute([RES_PENDING, $fee, now(), $reservationId]);
     $pdo->commit();
 
-    $admins = $pdo->query('SELECT email FROM users WHERE role_level = 0 AND status = "active"')->fetchAll(PDO::FETCH_COLUMN);
+    $admins = $pdo->query("SELECT email FROM users WHERE role_level = 0 AND status = 'active'")->fetchAll(PDO::FETCH_COLUMN);
     foreach ($admins as $adminEmail) {
         queue_mail($pdo, (string) $adminEmail, 'Nouvelle demande de réservation à valider', 'Une nouvelle demande de réservation doit être validée dans le back-office KAKEMONO.');
     }

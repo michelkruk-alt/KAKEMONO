@@ -19,6 +19,13 @@ const CART_HOLD_DURATION_SECONDS = 900;
 const MAX_UPLOAD_SIZE_BYTES = 5_242_880;
 
 const ROOT_PATH = __DIR__ . '/..';
+const DB_DRIVER = 'mysql';
+const DB_HOST = 'localhost';
+const DB_PORT = '3306';
+const DB_NAME = 'kakemono';
+const DB_USER = 'kakemono';
+const DB_PASSWORD = '';
+const DB_CHARSET = 'utf8mb4';
 const DB_PATH = ROOT_PATH . '/data/kakemono.sqlite';
 const UPLOAD_DIR = ROOT_PATH . '/uploads';
 
@@ -26,185 +33,390 @@ if (!is_dir(UPLOAD_DIR)) {
     mkdir(UPLOAD_DIR, 0777, true);
 }
 
-$pdo = new PDO('sqlite:' . DB_PATH);
+$pdo = connect_database();
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-$pdo->exec('PRAGMA foreign_keys = ON');
 
 initialize_schema($pdo);
 seed_defaults($pdo);
 purge_expired_holds($pdo);
 
+function env_value(string $key, string $default): string
+{
+    $value = getenv($key);
+    return $value !== false && $value !== '' ? $value : $default;
+}
+
+function connect_database(): PDO
+{
+    $driver = strtolower(env_value('DB_DRIVER', DB_DRIVER));
+
+    if ($driver === 'mysql') {
+        $host = env_value('DB_HOST', DB_HOST);
+        $port = env_value('DB_PORT', DB_PORT);
+        $name = env_value('DB_NAME', DB_NAME);
+        $user = env_value('DB_USER', DB_USER);
+        $password = env_value('DB_PASSWORD', DB_PASSWORD);
+        $charset = env_value('DB_CHARSET', DB_CHARSET);
+        $dsn = sprintf('mysql:host=%s;port=%s;dbname=%s;charset=%s', $host, $port, $name, $charset);
+        return new PDO($dsn, $user, $password);
+    }
+
+    $directory = dirname(DB_PATH);
+    if (!is_dir($directory)) {
+        mkdir($directory, 0777, true);
+    }
+
+    $pdo = new PDO('sqlite:' . DB_PATH);
+    $pdo->exec('PRAGMA foreign_keys = ON');
+    return $pdo;
+}
+
 function initialize_schema(PDO $pdo): void
 {
+    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+
+    if ($driver === 'mysql') {
+        $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            first_name VARCHAR(120) NOT NULL,
+            last_name VARCHAR(120) NOT NULL,
+            address VARCHAR(255) NOT NULL,
+            city VARCHAR(120) NOT NULL,
+            postal_code VARCHAR(20) NOT NULL,
+            email VARCHAR(190) NOT NULL UNIQUE,
+            password_hash VARCHAR(255) NOT NULL,
+            is_organization TINYINT(1) NOT NULL DEFAULT 0,
+            role_level INT NOT NULL DEFAULT 1,
+            status VARCHAR(30) NOT NULL DEFAULT 'pending',
+            approved_at DATETIME NULL,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+        CREATE TABLE IF NOT EXISTS login_history (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NULL,
+            email VARCHAR(190) NOT NULL,
+            action VARCHAR(50) NOT NULL,
+            ip_address VARCHAR(45) NOT NULL,
+            user_agent TEXT NOT NULL,
+            created_at DATETIME NOT NULL,
+            CONSTRAINT fk_login_history_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+        CREATE TABLE IF NOT EXISTS association_settings (
+            id TINYINT PRIMARY KEY,
+            association_name VARCHAR(190) NOT NULL,
+            legal_name VARCHAR(190) NOT NULL,
+            address VARCHAR(255) NOT NULL,
+            city VARCHAR(120) NOT NULL,
+            postal_code VARCHAR(20) NOT NULL,
+            email VARCHAR(190) NOT NULL,
+            phone VARCHAR(50) NOT NULL,
+            siret VARCHAR(30) NOT NULL,
+            vat_number VARCHAR(120) NOT NULL,
+            iban VARCHAR(50) NOT NULL,
+            bic VARCHAR(20) NOT NULL,
+            billing_note TEXT NOT NULL,
+            updated_at DATETIME NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+        CREATE TABLE IF NOT EXISTS products (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(190) NOT NULL,
+            product_type VARCHAR(30) NOT NULL,
+            description TEXT NOT NULL,
+            image_path VARCHAR(255) NULL,
+            price_ht DECIMAL(10, 2) NOT NULL,
+            price_ttc DECIMAL(10, 2) NOT NULL,
+            is_quantity_limited TINYINT(1) NOT NULL DEFAULT 0,
+            quantity_limit INT NULL,
+            active TINYINT(1) NOT NULL DEFAULT 1,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+        CREATE TABLE IF NOT EXISTS events (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            title VARCHAR(190) NOT NULL,
+            year_label VARCHAR(10) NOT NULL,
+            location VARCHAR(255) NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            intro_text TEXT NOT NULL,
+            plan_image VARCHAR(255) NULL,
+            is_active TINYINT(1) NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+        CREATE TABLE IF NOT EXISTS event_stands (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            event_id INT NOT NULL,
+            product_id INT NOT NULL,
+            label VARCHAR(60) NOT NULL,
+            x_coord DECIMAL(6, 2) NOT NULL,
+            y_coord DECIMAL(6, 2) NOT NULL,
+            note VARCHAR(500) NOT NULL DEFAULT '',
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL,
+            CONSTRAINT fk_event_stands_event FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE,
+            CONSTRAINT fk_event_stands_product FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE RESTRICT
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+        CREATE TABLE IF NOT EXISTS stand_options (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            stand_id INT NOT NULL,
+            option_product_id INT NOT NULL,
+            CONSTRAINT fk_stand_options_stand FOREIGN KEY(stand_id) REFERENCES event_stands(id) ON DELETE CASCADE,
+            CONSTRAINT fk_stand_options_product FOREIGN KEY(option_product_id) REFERENCES products(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+        CREATE TABLE IF NOT EXISTS reservations (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            event_id INT NOT NULL,
+            stand_id INT NOT NULL,
+            user_id INT NOT NULL,
+            status VARCHAR(30) NOT NULL,
+            hold_expires_at DATETIME NULL,
+            presentation_text TEXT NOT NULL,
+            ai_sourced TINYINT(1) NOT NULL DEFAULT 0,
+            stand_image VARCHAR(255) NOT NULL,
+            dossier_fee DECIMAL(10, 2) NOT NULL DEFAULT 0,
+            terms_accepted TINYINT(1) NOT NULL DEFAULT 0,
+            payment_method VARCHAR(50) NULL,
+            payment_schedule TEXT NULL,
+            invoice_number VARCHAR(60) NULL,
+            approved_by INT NULL,
+            approved_at DATETIME NULL,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL,
+            CONSTRAINT fk_reservations_event FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE,
+            CONSTRAINT fk_reservations_stand FOREIGN KEY(stand_id) REFERENCES event_stands(id) ON DELETE CASCADE,
+            CONSTRAINT fk_reservations_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+            CONSTRAINT fk_reservations_approved_by FOREIGN KEY(approved_by) REFERENCES users(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+        CREATE TABLE IF NOT EXISTS reservation_items (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            reservation_id INT NOT NULL,
+            product_id INT NULL,
+            label VARCHAR(190) NOT NULL,
+            quantity INT NOT NULL DEFAULT 1,
+            price_ht DECIMAL(10, 2) NOT NULL,
+            price_ttc DECIMAL(10, 2) NOT NULL,
+            item_type VARCHAR(30) NOT NULL,
+            CONSTRAINT fk_reservation_items_reservation FOREIGN KEY(reservation_id) REFERENCES reservations(id) ON DELETE CASCADE,
+            CONSTRAINT fk_reservation_items_product FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+        CREATE TABLE IF NOT EXISTS messages (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            sender_id INT NOT NULL,
+            recipient_id INT NOT NULL,
+            subject VARCHAR(255) NOT NULL,
+            body TEXT NOT NULL,
+            created_at DATETIME NOT NULL,
+            CONSTRAINT fk_messages_sender FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE,
+            CONSTRAINT fk_messages_recipient FOREIGN KEY(recipient_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+        CREATE TABLE IF NOT EXISTS mail_queue (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            recipient_email VARCHAR(190) NOT NULL,
+            subject VARCHAR(255) NOT NULL,
+            body TEXT NOT NULL,
+            status VARCHAR(30) NOT NULL,
+            created_at DATETIME NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+        CREATE TABLE IF NOT EXISTS visitor_feedback (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            event_id INT NOT NULL,
+            stand_id INT NULL,
+            visitor_name VARCHAR(120) NOT NULL,
+            visitor_email VARCHAR(190) NULL,
+            appreciation INT NULL,
+            comment TEXT NOT NULL,
+            is_private TINYINT(1) NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL,
+            CONSTRAINT fk_visitor_feedback_event FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE,
+            CONSTRAINT fk_visitor_feedback_stand FOREIGN KEY(stand_id) REFERENCES event_stands(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        SQL);
+        return;
+    }
+
     $pdo->exec(<<<'SQL'
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        first_name TEXT NOT NULL,
-        last_name TEXT NOT NULL,
-        address TEXT NOT NULL,
-        city TEXT NOT NULL,
-        postal_code TEXT NOT NULL,
-        email TEXT NOT NULL UNIQUE,
-        password_hash TEXT NOT NULL,
-        is_organization INTEGER NOT NULL DEFAULT 0,
-        role_level INTEGER NOT NULL DEFAULT 1,
-        status TEXT NOT NULL DEFAULT 'pending',
-        approved_at TEXT DEFAULT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-    );
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            first_name TEXT NOT NULL,
+            last_name TEXT NOT NULL,
+            address TEXT NOT NULL,
+            city TEXT NOT NULL,
+            postal_code TEXT NOT NULL,
+            email TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            is_organization INTEGER NOT NULL DEFAULT 0,
+            role_level INTEGER NOT NULL DEFAULT 1,
+            status TEXT NOT NULL DEFAULT 'pending',
+            approved_at TEXT DEFAULT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
 
-    CREATE TABLE IF NOT EXISTS login_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER DEFAULT NULL,
-        email TEXT NOT NULL,
-        action TEXT NOT NULL,
-        ip_address TEXT NOT NULL,
-        user_agent TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
-    );
+        CREATE TABLE IF NOT EXISTS login_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER DEFAULT NULL,
+            email TEXT NOT NULL,
+            action TEXT NOT NULL,
+            ip_address TEXT NOT NULL,
+            user_agent TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
+        );
 
-    CREATE TABLE IF NOT EXISTS association_settings (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        association_name TEXT NOT NULL,
-        legal_name TEXT NOT NULL,
-        address TEXT NOT NULL,
-        city TEXT NOT NULL,
-        postal_code TEXT NOT NULL,
-        email TEXT NOT NULL,
-        phone TEXT NOT NULL,
-        siret TEXT NOT NULL,
-        vat_number TEXT NOT NULL,
-        iban TEXT NOT NULL,
-        bic TEXT NOT NULL,
-        billing_note TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-    );
+        CREATE TABLE IF NOT EXISTS association_settings (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            association_name TEXT NOT NULL,
+            legal_name TEXT NOT NULL,
+            address TEXT NOT NULL,
+            city TEXT NOT NULL,
+            postal_code TEXT NOT NULL,
+            email TEXT NOT NULL,
+            phone TEXT NOT NULL,
+            siret TEXT NOT NULL,
+            vat_number TEXT NOT NULL,
+            iban TEXT NOT NULL,
+            bic TEXT NOT NULL,
+            billing_note TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
 
-    CREATE TABLE IF NOT EXISTS products (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        product_type TEXT NOT NULL,
-        description TEXT NOT NULL,
-        image_path TEXT DEFAULT NULL,
-        price_ht REAL NOT NULL,
-        price_ttc REAL NOT NULL,
-        is_quantity_limited INTEGER NOT NULL DEFAULT 0,
-        quantity_limit INTEGER DEFAULT NULL,
-        active INTEGER NOT NULL DEFAULT 1,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-    );
+        CREATE TABLE IF NOT EXISTS products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            product_type TEXT NOT NULL,
+            description TEXT NOT NULL,
+            image_path TEXT DEFAULT NULL,
+            price_ht REAL NOT NULL,
+            price_ttc REAL NOT NULL,
+            is_quantity_limited INTEGER NOT NULL DEFAULT 0,
+            quantity_limit INTEGER DEFAULT NULL,
+            active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
 
-    CREATE TABLE IF NOT EXISTS events (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        year_label TEXT NOT NULL,
-        location TEXT NOT NULL,
-        start_date TEXT NOT NULL,
-        end_date TEXT NOT NULL,
-        intro_text TEXT NOT NULL,
-        plan_image TEXT DEFAULT NULL,
-        is_active INTEGER NOT NULL DEFAULT 0,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-    );
+        CREATE TABLE IF NOT EXISTS events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            year_label TEXT NOT NULL,
+            location TEXT NOT NULL,
+            start_date TEXT NOT NULL,
+            end_date TEXT NOT NULL,
+            intro_text TEXT NOT NULL,
+            plan_image TEXT DEFAULT NULL,
+            is_active INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
 
-    CREATE TABLE IF NOT EXISTS event_stands (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        event_id INTEGER NOT NULL,
-        product_id INTEGER NOT NULL,
-        label TEXT NOT NULL,
-        x_coord REAL NOT NULL,
-        y_coord REAL NOT NULL,
-        note TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE,
-        FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE RESTRICT
-    );
+        CREATE TABLE IF NOT EXISTS event_stands (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            label TEXT NOT NULL,
+            x_coord REAL NOT NULL,
+            y_coord REAL NOT NULL,
+            note TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE,
+            FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE RESTRICT
+        );
 
-    CREATE TABLE IF NOT EXISTS stand_options (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        stand_id INTEGER NOT NULL,
-        option_product_id INTEGER NOT NULL,
-        FOREIGN KEY(stand_id) REFERENCES event_stands(id) ON DELETE CASCADE,
-        FOREIGN KEY(option_product_id) REFERENCES products(id) ON DELETE CASCADE
-    );
+        CREATE TABLE IF NOT EXISTS stand_options (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            stand_id INTEGER NOT NULL,
+            option_product_id INTEGER NOT NULL,
+            FOREIGN KEY(stand_id) REFERENCES event_stands(id) ON DELETE CASCADE,
+            FOREIGN KEY(option_product_id) REFERENCES products(id) ON DELETE CASCADE
+        );
 
-    CREATE TABLE IF NOT EXISTS reservations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        event_id INTEGER NOT NULL,
-        stand_id INTEGER NOT NULL,
-        user_id INTEGER NOT NULL,
-        status TEXT NOT NULL,
-        hold_expires_at TEXT DEFAULT NULL,
-        presentation_text TEXT NOT NULL,
-        ai_sourced INTEGER NOT NULL DEFAULT 0,
-        stand_image TEXT NOT NULL,
-        dossier_fee REAL NOT NULL DEFAULT 0,
-        terms_accepted INTEGER NOT NULL DEFAULT 0,
-        payment_method TEXT DEFAULT NULL,
-        payment_schedule TEXT DEFAULT NULL,
-        invoice_number TEXT DEFAULT NULL,
-        approved_by INTEGER DEFAULT NULL,
-        approved_at TEXT DEFAULT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE,
-        FOREIGN KEY(stand_id) REFERENCES event_stands(id) ON DELETE CASCADE,
-        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
-        FOREIGN KEY(approved_by) REFERENCES users(id) ON DELETE SET NULL
-    );
+        CREATE TABLE IF NOT EXISTS reservations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER NOT NULL,
+            stand_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            status TEXT NOT NULL,
+            hold_expires_at TEXT DEFAULT NULL,
+            presentation_text TEXT NOT NULL,
+            ai_sourced INTEGER NOT NULL DEFAULT 0,
+            stand_image TEXT NOT NULL,
+            dossier_fee REAL NOT NULL DEFAULT 0,
+            terms_accepted INTEGER NOT NULL DEFAULT 0,
+            payment_method TEXT DEFAULT NULL,
+            payment_schedule TEXT DEFAULT NULL,
+            invoice_number TEXT DEFAULT NULL,
+            approved_by INTEGER DEFAULT NULL,
+            approved_at TEXT DEFAULT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE,
+            FOREIGN KEY(stand_id) REFERENCES event_stands(id) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(approved_by) REFERENCES users(id) ON DELETE SET NULL
+        );
 
-    CREATE TABLE IF NOT EXISTS reservation_items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        reservation_id INTEGER NOT NULL,
-        product_id INTEGER DEFAULT NULL,
-        label TEXT NOT NULL,
-        quantity INTEGER NOT NULL DEFAULT 1,
-        price_ht REAL NOT NULL,
-        price_ttc REAL NOT NULL,
-        item_type TEXT NOT NULL,
-        FOREIGN KEY(reservation_id) REFERENCES reservations(id) ON DELETE CASCADE,
-        FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE SET NULL
-    );
+        CREATE TABLE IF NOT EXISTS reservation_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            reservation_id INTEGER NOT NULL,
+            product_id INTEGER DEFAULT NULL,
+            label TEXT NOT NULL,
+            quantity INTEGER NOT NULL DEFAULT 1,
+            price_ht REAL NOT NULL,
+            price_ttc REAL NOT NULL,
+            item_type TEXT NOT NULL,
+            FOREIGN KEY(reservation_id) REFERENCES reservations(id) ON DELETE CASCADE,
+            FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE SET NULL
+        );
 
-    CREATE TABLE IF NOT EXISTS messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        sender_id INTEGER NOT NULL,
-        recipient_id INTEGER NOT NULL,
-        subject TEXT NOT NULL,
-        body TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE,
-        FOREIGN KEY(recipient_id) REFERENCES users(id) ON DELETE CASCADE
-    );
+        CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_id INTEGER NOT NULL,
+            recipient_id INTEGER NOT NULL,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(recipient_id) REFERENCES users(id) ON DELETE CASCADE
+        );
 
-    CREATE TABLE IF NOT EXISTS mail_queue (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        recipient_email TEXT NOT NULL,
-        subject TEXT NOT NULL,
-        body TEXT NOT NULL,
-        status TEXT NOT NULL,
-        created_at TEXT NOT NULL
-    );
+        CREATE TABLE IF NOT EXISTS mail_queue (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recipient_email TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
 
-    CREATE TABLE IF NOT EXISTS visitor_feedback (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        event_id INTEGER NOT NULL,
-        stand_id INTEGER DEFAULT NULL,
-        visitor_name TEXT NOT NULL,
-        visitor_email TEXT DEFAULT NULL,
-        appreciation INTEGER DEFAULT NULL,
-        comment TEXT NOT NULL,
-        is_private INTEGER NOT NULL DEFAULT 0,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE,
-        FOREIGN KEY(stand_id) REFERENCES event_stands(id) ON DELETE SET NULL
-    );
+        CREATE TABLE IF NOT EXISTS visitor_feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER NOT NULL,
+            stand_id INTEGER DEFAULT NULL,
+            visitor_name TEXT NOT NULL,
+            visitor_email TEXT DEFAULT NULL,
+            appreciation INTEGER DEFAULT NULL,
+            comment TEXT NOT NULL,
+            is_private INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE,
+            FOREIGN KEY(stand_id) REFERENCES event_stands(id) ON DELETE SET NULL
+        );
     SQL);
 }
 

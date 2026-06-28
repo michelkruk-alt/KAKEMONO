@@ -1,10 +1,29 @@
 # KAKEMONO
 
-Prototype de site multipages pour KAKEMONO Events en PHP, SQLite, Bootstrap et jQuery.
+Prototype de site multipages pour KAKEMONO Events en PHP, MySQL/SQLite, Bootstrap et jQuery.
 
 ## Démarrage local
 
+### Mode MySQL (OVH recommandé)
+
+Configurer les variables d’environnement avant de lancer PHP :
+
 ```bash
+export DB_DRIVER=mysql
+export DB_HOST=localhost
+export DB_PORT=3306
+export DB_NAME=votre_base_ovh
+export DB_USER=votre_utilisateur_ovh
+export DB_PASSWORD=votre_mot_de_passe_ovh
+export DB_CHARSET=utf8mb4
+```
+
+Le schéma est créé automatiquement au premier lancement.
+
+### Mode SQLite (fallback local)
+
+```bash
+export DB_DRIVER=sqlite
 php -S 127.0.0.1:8000
 ```
 
@@ -29,5 +48,6 @@ Puis ouvrir `http://127.0.0.1:8000/index.php`.
 
 ## Stockage
 
-- base SQLite : `data/kakemono.sqlite`
+- base MySQL (OVH) : via variables `DB_*`
+- base SQLite locale (optionnelle) : `data/kakemono.sqlite`
 - uploads : `uploads/`

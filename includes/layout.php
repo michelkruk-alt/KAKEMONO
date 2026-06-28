@@ -80,7 +80,7 @@ function render_footer(): void
     </main>
     <footer class="py-4 border-top bg-light-subtle">
         <div class="container small d-flex flex-column flex-lg-row justify-content-between gap-2">
-            <span>Prototype multipages KAKEMONO Events · Bootstrap, jQuery, SQLite</span>
+            <span>Prototype multipages KAKEMONO Events · Bootstrap, jQuery, MySQL/SQLite</span>
             <span>Compte admin de démonstration : admin@kakemono.local / Admin123!</span>
         </div>
     </footer>
