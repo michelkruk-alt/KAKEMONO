@@ -53,8 +53,9 @@ render_header('Panier');
                             </div>
                             <ul class="list-group mb-3">
                                 <?php foreach ($detail['items'] as $item): ?>
-                                    <?php if ($item['item_type'] === 'option' || $item['item_type'] === 'fee') { continue; } ?>
-                                    <li class="list-group-item d-flex justify-content-between"><span><?= e($item['label']) ?></span><span><?= format_price((float) $item['price_ttc'] * (int) $item['quantity']) ?></span></li>
+                                    <?php if ($item['item_type'] !== 'option' && $item['item_type'] !== 'fee'): ?>
+                                        <li class="list-group-item d-flex justify-content-between"><span><?= e($item['label']) ?></span><span><?= format_price((float) $item['price_ttc'] * (int) $item['quantity']) ?></span></li>
+                                    <?php endif; ?>
                                 <?php endforeach; ?>
                                 <li class="list-group-item d-flex justify-content-between"><span>Frais de dossier applicables</span><span><?= format_price($feePreview) ?></span></li>
                             </ul>
