@@ -47,21 +47,37 @@ $(function () {
         bootstrap.Modal.getOrCreateInstance(modal[0]).show();
     });
 
+    // Track whether we are editing an existing stand (to allow map-click coord update)
+    let editingExistingStand = false;
+
     $('#mapClickBoard').on('click', function (event) {
         const board = $(this);
         if (!board.data('editable')) return;
+        // Ignore clicks on stand-point buttons (handled by their own listener)
+        if ($(event.target).hasClass('stand-point')) return;
         const offset = board.offset();
         const x = ((event.pageX - offset.left) / board.width()) * 100;
         const y = ((event.pageY - offset.top) / board.height()) * 100;
-        $('#standEditorForm [name="x_coord"]').val(x.toFixed(2));
-        $('#standEditorForm [name="y_coord"]').val(y.toFixed(2));
+        const form = $('#standEditorForm');
+        form.find('[name="x_coord"]').val(x.toFixed(2));
+        form.find('[name="y_coord"]').val(y.toFixed(2));
         $('#coordHelp').text('Coordonnées sélectionnées : ' + x.toFixed(2) + '% / ' + y.toFixed(2) + '%');
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('standEditorModal')).show();
+        if (!editingExistingStand) {
+            // New stand: reset form and open modal
+            form.find('[name="stand_id"]').val(0);
+            form.find('[name="label"]').val('');
+            form.find('[name="note"]').val('');
+            form.find('input[name="option_ids[]"]').prop('checked', false);
+            $('#standDeleteWrapper').addClass('d-none');
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('standEditorModal')).show();
+        }
+        // If editing: just update coords silently (modal stays open)
     });
 
     $('[data-edit-stand]').on('click', function (event) {
         event.stopPropagation();
         const payload = JSON.parse($(this).attr('data-edit-stand') || '{}');
+        editingExistingStand = true;
         const form = $('#standEditorForm');
         form.find('[name="stand_id"]').val(payload.id);
         form.find('[name="label"]').val(payload.label);
@@ -73,8 +89,24 @@ $(function () {
         (payload.option_ids || []).forEach(function (id) {
             form.find('input[name="option_ids[]"][value="' + id + '"]').prop('checked', true);
         });
-        $('#coordHelp').text('Coordonnées actuelles : ' + payload.x_coord + '% / ' + payload.y_coord + '%');
+        // Show delete button and wire it up
+        $('#deleteStandId').val(payload.id);
+        $('#standDeleteWrapper').removeClass('d-none');
+        $('#coordHelp').text('Coordonnées actuelles : ' + payload.x_coord + '% / ' + payload.y_coord + '% — cliquez sur le plan pour déplacer.');
         bootstrap.Modal.getOrCreateInstance(document.getElementById('standEditorModal')).show();
+    });
+
+    // Reset editing state when modal closes
+    document.getElementById('standEditorModal') && document.getElementById('standEditorModal').addEventListener('hidden.bs.modal', function () {
+        editingExistingStand = false;
+        $('#standDeleteWrapper').addClass('d-none');
+    });
+
+    // Delete stand confirmation
+    $('#standDeleteBtn').on('click', function () {
+        if (confirm('Supprimer ce stand ? Cette action est irréversible.')) {
+            $('#standDeleteForm').trigger('submit');
+        }
     });
 
     const chartEl = document.getElementById('revenueChart');
