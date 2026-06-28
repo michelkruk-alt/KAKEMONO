@@ -81,6 +81,69 @@ if ($action === 'add') {
     }
 }
 
+if ($action === 'update') {
+    $reservationId = (int) ($_POST['reservation_id'] ?? 0);
+    $reservation = get_reservation($pdo, $reservationId);
+    if (!$reservation || (int) $reservation['user_id'] !== (int) $user['id'] || $reservation['status'] !== RES_CART) {
+        set_flash('danger', 'Article de panier invalide.');
+        redirect_to('/cart.php');
+    }
+
+    $presentationText = trim($_POST['presentation_text'] ?? '');
+    if ($presentationText === '') {
+        set_flash('warning', 'La présentation du travail exposé est obligatoire.');
+        redirect_to('/cart.php');
+    }
+
+    try {
+        $imagePath = handle_image_upload('stand_image', 'stands') ?: $reservation['stand_image'];
+        $optionIds = array_values(array_unique(array_filter(array_map('intval', $_POST['option_ids'] ?? []), static fn (int $id): bool => $id > 0)));
+        $itemInsert = $pdo->prepare('INSERT INTO reservation_items (reservation_id, product_id, label, quantity, price_ht, price_ttc, item_type) VALUES (?, ?, ?, ?, ?, ?, ?)');
+
+        $pdo->beginTransaction();
+        $pdo->prepare('UPDATE reservations SET presentation_text = ?, ai_sourced = ?, stand_image = ?, updated_at = ? WHERE id = ?')->execute([
+            $presentationText,
+            isset($_POST['ai_sourced']) ? 1 : 0,
+            $imagePath,
+            now(),
+            $reservationId,
+        ]);
+
+        $pdo->prepare('DELETE FROM reservation_items WHERE reservation_id = ? AND item_type = ?')->execute([$reservationId, 'option']);
+        if ($optionIds) {
+            $placeholders = implode(',', array_fill(0, count($optionIds), '?'));
+            $optStmt = $pdo->prepare("SELECT p.* FROM products p JOIN stand_options so ON so.option_product_id = p.id WHERE so.stand_id = ? AND p.id IN ($placeholders) AND p.product_type = 'option'");
+            $optStmt->execute(array_merge([(int) $reservation['stand_id']], $optionIds));
+            foreach ($optStmt->fetchAll() as $option) {
+                $itemInsert->execute([$reservationId, (int) $option['id'], $option['name'], 1, (float) $option['price_ht'], (float) $option['price_ttc'], 'option']);
+            }
+        }
+
+        $pdo->commit();
+        set_flash('success', 'Article du panier mis à jour.');
+        redirect_to('/cart.php');
+    } catch (Throwable $throwable) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        set_flash('danger', $throwable->getMessage());
+        redirect_to('/cart.php');
+    }
+}
+
+if ($action === 'remove') {
+    $reservationId = (int) ($_POST['reservation_id'] ?? 0);
+    $reservation = get_reservation($pdo, $reservationId);
+    if (!$reservation || (int) $reservation['user_id'] !== (int) $user['id'] || $reservation['status'] !== RES_CART) {
+        set_flash('danger', 'Article de panier invalide.');
+        redirect_to('/cart.php');
+    }
+
+    $pdo->prepare('DELETE FROM reservations WHERE id = ?')->execute([$reservationId]);
+    set_flash('success', 'Article supprimé du panier et pré-réservation libérée.');
+    redirect_to('/cart.php');
+}
+
 if ($action === 'confirm') {
     $reservationId = (int) ($_POST['reservation_id'] ?? 0);
     $reservation = get_reservation($pdo, $reservationId);
