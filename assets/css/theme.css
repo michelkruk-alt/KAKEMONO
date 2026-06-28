@@ -1,0 +1,100 @@
+:root {
+    --bs-primary: #7b4b2a;
+    --bs-primary-rgb: 123, 75, 42;
+    --bs-secondary: #b4845c;
+    --bs-body-bg: #f8f1eb;
+    --bs-body-color: #3d2818;
+    --app-brown-dark: #5b3a29;
+    --app-brown: #7b4b2a;
+    --app-brown-soft: #d7b89a;
+    --app-sand: #efe2d3;
+    --app-olive: #698f3f;
+    --app-orange: #dd8b39;
+    --app-red: #b94a48;
+}
+
+body {
+    background: linear-gradient(180deg, #f9f2eb 0%, #f4e6d8 100%);
+}
+
+.app-nav {
+    background: linear-gradient(90deg, var(--app-brown-dark), var(--app-brown));
+}
+
+.hero-card,
+.card,
+.modal-content,
+.table {
+    border: 1px solid rgba(91, 58, 41, .12);
+    box-shadow: 0 12px 30px rgba(91, 58, 41, .08);
+}
+
+.section-title {
+    color: var(--app-brown-dark);
+}
+
+.soft-panel {
+    background: rgba(255,255,255,.75);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    border: 1px solid rgba(91, 58, 41, .12);
+}
+
+.plan-board {
+    position: relative;
+    min-height: 420px;
+    background: repeating-linear-gradient(45deg, #f6ebdf, #f6ebdf 10px, #f1e1d2 10px, #f1e1d2 20px);
+    border-radius: 1rem;
+    overflow: hidden;
+    border: 2px dashed rgba(91, 58, 41, .15);
+}
+
+.plan-board img {
+    width: 100%;
+    display: block;
+    max-height: 620px;
+    object-fit: contain;
+}
+
+.stand-point {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    transform: translate(-50%, -50%);
+    border: 2px solid #fff;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,.2);
+}
+
+.stand-point.available { background: var(--app-olive); }
+.stand-point.pending { background: var(--app-orange); }
+.stand-point.reserved { background: var(--app-red); }
+
+.legend-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    display: inline-block;
+    margin-right: .5rem;
+}
+
+.badge-status {
+    background: rgba(123, 75, 42, .12);
+    color: var(--app-brown-dark);
+}
+
+.sidebar-stat {
+    background: linear-gradient(135deg, rgba(123, 75, 42, .1), rgba(180, 132, 92, .18));
+    border-radius: 1rem;
+    padding: 1rem;
+}
+
+.table thead th {
+    background: #f1e2d4;
+}
+
+.kakemono-card {
+    background: linear-gradient(135deg, rgba(123, 75, 42, .9), rgba(180, 132, 92, .82));
+    color: white;
+}
