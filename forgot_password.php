@@ -14,7 +14,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($user) {
             $token = create_password_reset($pdo, (int) $user['id']);
-            $link = 'http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/reset_password.php?token=' . $token;
+            $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $link = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/reset_password.php?token=' . $token;
             $body = "Bonjour {$user['first_name']},\n\nVous avez demandé la réinitialisation de votre mot de passe.\n\nCliquez sur ce lien (valable 1 heure) :\n{$link}\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message.";
             queue_mail($pdo, $email, 'Réinitialisation de votre mot de passe KAKEMONO', $body);
         }
