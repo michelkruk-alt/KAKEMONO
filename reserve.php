@@ -27,7 +27,7 @@ if ($action === 'add') {
         redirect_to('/event.php?id=' . $eventId);
     }
 
-    $conflictStmt = $pdo->prepare("SELECT COUNT(*) FROM reservations WHERE stand_id = ? AND status IN (?, ?, ?) AND (hold_expires_at IS NULL OR hold_expires_at >= ?)");
+    $conflictStmt = $pdo->prepare('SELECT COUNT(*) FROM reservations WHERE stand_id = ? AND status IN (?, ?, ?) AND (hold_expires_at IS NULL OR hold_expires_at >= ?)');
     $conflictStmt->execute([$standId, RES_CART, RES_PENDING, RES_APPROVED, now()]);
     if ((int) $conflictStmt->fetchColumn() > 0) {
         set_flash('warning', 'Ce stand n’est plus disponible.');

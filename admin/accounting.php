@@ -48,8 +48,11 @@ $totalStands = (int) $pdo->query('SELECT COUNT(*) FROM event_stands')->fetchColu
 $approvedCount = (int) $pdo->query("SELECT COUNT(*) FROM reservations WHERE status = 'approved'")->fetchColumn();
 $pendingCount = (int) $pdo->query("SELECT COUNT(*) FROM reservations WHERE status = 'pending_admin'")->fetchColumn();
 $fillRate = $totalStands ? (int) round(($approvedCount / $totalStands) * 100) : 0;
+$monthExpr = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql'
+    ? 'SUBSTRING(COALESCE(r.approved_at, r.created_at), 1, 7)'
+    : 'substr(COALESCE(r.approved_at, r.created_at), 1, 7)';
 $chartRows = $pdo->query("
-    SELECT substr(COALESCE(r.approved_at, r.created_at), 1, 7) AS label,
+    SELECT {$monthExpr} AS label,
            COALESCE(SUM(ri.price_ttc * ri.quantity), 0) AS revenue
     FROM reservations r
     LEFT JOIN reservation_items ri ON ri.reservation_id = r.id
