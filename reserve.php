@@ -97,7 +97,9 @@ if ($action === 'update') {
 
     try {
         $imagePath = handle_image_upload('stand_image', 'stands') ?: $reservation['stand_image'];
-        $optionIds = array_values(array_unique(array_filter(array_map('intval', $_POST['option_ids'] ?? []), static fn (int $id): bool => $id > 0)));
+        $rawOptionIds = array_map('intval', $_POST['option_ids'] ?? []);
+        $positiveOptionIds = array_filter($rawOptionIds, static fn (int $id): bool => $id > 0);
+        $optionIds = array_values(array_unique($positiveOptionIds));
         $itemInsert = $pdo->prepare('INSERT INTO reservation_items (reservation_id, product_id, label, quantity, price_ht, price_ttc, item_type) VALUES (?, ?, ?, ?, ?, ?, ?)');
 
         $pdo->beginTransaction();
