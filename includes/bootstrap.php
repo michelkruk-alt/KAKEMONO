@@ -33,13 +33,18 @@ if (!is_dir(UPLOAD_DIR)) {
     mkdir(UPLOAD_DIR, 0777, true);
 }
 
-$pdo = connect_database();
-$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-$pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+try {
+    $pdo = connect_database();
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 
-initialize_schema($pdo);
-seed_defaults($pdo);
-purge_expired_holds($pdo);
+    initialize_schema($pdo);
+    seed_defaults($pdo);
+    purge_expired_holds($pdo);
+} catch (PDOException $e) {
+    http_response_code(503);
+    exit('Erreur de connexion à la base de données : ' . $e->getMessage() . '. Vérifiez les paramètres dans includes/config.php.');
+}
 
 function connect_database(): PDO
 {
