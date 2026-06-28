@@ -48,7 +48,15 @@ $totalStands = (int) $pdo->query('SELECT COUNT(*) FROM event_stands')->fetchColu
 $approvedCount = (int) $pdo->query("SELECT COUNT(*) FROM reservations WHERE status = 'approved'")->fetchColumn();
 $pendingCount = (int) $pdo->query("SELECT COUNT(*) FROM reservations WHERE status = 'pending_admin'")->fetchColumn();
 $fillRate = $totalStands ? (int) round(($approvedCount / $totalStands) * 100) : 0;
-$chartRows = $pdo->query("SELECT substr(COALESCE(approved_at, created_at), 1, 7) AS label, COALESCE(SUM((SELECT COALESCE(SUM(price_ttc * quantity), 0) FROM reservation_items ri WHERE ri.reservation_id = r.id)), 0) AS revenue FROM reservations r WHERE status = 'approved' GROUP BY label ORDER BY label")->fetchAll();
+$chartRows = $pdo->query("
+    SELECT substr(COALESCE(r.approved_at, r.created_at), 1, 7) AS label,
+           COALESCE(SUM(ri.price_ttc * ri.quantity), 0) AS revenue
+    FROM reservations r
+    LEFT JOIN reservation_items ri ON ri.reservation_id = r.id
+    WHERE r.status = 'approved'
+    GROUP BY label
+    ORDER BY label
+")->fetchAll();
 $labels = array_map(fn($row) => $row['label'], $chartRows);
 $values = array_map(fn($row) => round((float) $row['revenue'], 2), $chartRows);
 render_header('Réservations & comptabilité', 'accounting');
