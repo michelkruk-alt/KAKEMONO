@@ -73,7 +73,7 @@ render_header('Plan visiteurs', 'touch');
     <div class="col-lg-4">
         <div class="vstack gap-4">
             <div class="soft-panel kakemono-card">
-                <h2 class="h4">Jeux Chasse aux Kakéminions</h2>
+                <h2 class="h4">Jeux Chasse aux Kakeminions</h2>
                 <p class="mb-0">Encart visible pour annoncer la chasse et préparer l’affichage temps réel des membres de l’association dans une future version.</p>
             </div>
             <div class="soft-panel">
