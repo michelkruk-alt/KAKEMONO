@@ -46,6 +46,10 @@ define('DB_DRIVER', 'sqlite');
 
 Puis :
 
+```bash
+php -S 127.0.0.1:8000
+```
+
 Puis ouvrir `http://127.0.0.1:8000/index.php`.
 
 ## Compte administrateur de démonstration
