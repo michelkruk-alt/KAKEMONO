@@ -14,14 +14,14 @@ if ((int) $reservation['user_id'] !== (int) $user['id'] && !is_privileged($user)
 }
 $lines = [
     'Facture : ' . ($reservation['invoice_number'] ?: 'Non attribuée'),
-    'Evenement : ' . $reservation['event_title'],
+    'Événement : ' . $reservation['event_title'],
     'Stand : ' . $reservation['stand_label'],
     'Exposant : ' . $reservation['first_name'] . ' ' . $reservation['last_name'],
     'Adresse : ' . $reservation['address'] . ', ' . $reservation['postal_code'] . ' ' . $reservation['city'],
     'Email : ' . $reservation['email'],
     'Statut : ' . reservation_status_label($reservation['status']),
     'Mode de règlement : ' . ($reservation['payment_method'] ?: 'À définir'),
-    'Echeancier : ' . ($reservation['payment_schedule'] ?: 'Aucun'),
+    'Échéancier : ' . ($reservation['payment_schedule'] ?: 'Aucun'),
     '--- Details ---',
 ];
 foreach ($reservation['items'] as $item) {

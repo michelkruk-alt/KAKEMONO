@@ -433,7 +433,7 @@ function queue_mail(PDO $pdo, string $email, string $subject, string $body): voi
     $status = 'queued';
     $headers = "MIME-Version: 1.0\r\nContent-type:text/plain;charset=UTF-8\r\n";
     if (function_exists('mail')) {
-        $sent = @mail($email, $subject, $body, $headers);
+        $sent = mail($email, $subject, $body, $headers);
         $status = $sent ? 'sent' : 'queued';
     }
 

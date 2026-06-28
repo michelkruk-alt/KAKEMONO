@@ -70,7 +70,7 @@ if ($action === 'add') {
         }
 
         $pdo->commit();
-        set_flash('success', 'Stand ajouté au panier et bloqué temporairement pendant 15 minutes.');
+        set_flash('success', 'Stand ajouté au panier et bloqué temporairement pendant ' . (CART_HOLD_DURATION_SECONDS / 60) . ' minutes.');
         redirect_to('/cart.php');
     } catch (Throwable $throwable) {
         if ($pdo->inTransaction()) {
