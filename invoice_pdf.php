@@ -20,7 +20,7 @@ $lines = [
     'Adresse : ' . $reservation['address'] . ', ' . $reservation['postal_code'] . ' ' . $reservation['city'],
     'Email : ' . $reservation['email'],
     'Statut : ' . reservation_status_label($reservation['status']),
-    'Mode de reglement : ' . ($reservation['payment_method'] ?: 'A definir'),
+    'Mode de règlement : ' . ($reservation['payment_method'] ?: 'À définir'),
     'Echeancier : ' . ($reservation['payment_schedule'] ?: 'Aucun'),
     '--- Details ---',
 ];

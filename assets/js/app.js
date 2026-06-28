@@ -22,16 +22,26 @@ $(function () {
             box.append('<p class="text-muted mb-0">Aucune option complémentaire.</p>');
         } else {
             payload.options.forEach(function (option) {
-                box.append(`
-                    <div class="form-check border rounded-3 p-2 mb-2 bg-light-subtle">
-                        <input class="form-check-input" type="checkbox" name="option_ids[]" value="${option.id}" id="option-${option.id}">
-                        <label class="form-check-label w-100" for="option-${option.id}">
-                            <strong>${option.name}</strong><br>
-                            <small>${option.description}</small><br>
-                            <span class="badge text-bg-secondary mt-1">${option.price_ttc_label}</span>
-                        </label>
-                    </div>
-                `);
+                const optionId = String(option.id);
+                const wrapper = $('<div>').addClass('form-check border rounded-3 p-2 mb-2 bg-light-subtle');
+                const input = $('<input>')
+                    .addClass('form-check-input')
+                    .attr({
+                        type: 'checkbox',
+                        name: 'option_ids[]',
+                        value: optionId,
+                        id: 'option-' + optionId
+                    });
+                const label = $('<label>')
+                    .addClass('form-check-label w-100')
+                    .attr('for', 'option-' + optionId);
+                label.append($('<strong>').text(option.name || 'Option'));
+                label.append('<br>');
+                label.append($('<small>').text(option.description || ''));
+                label.append('<br>');
+                label.append($('<span>').addClass('badge text-bg-secondary mt-1').text(option.price_ttc_label || ''));
+                wrapper.append(input, label);
+                box.append(wrapper);
             });
         }
         bootstrap.Modal.getOrCreateInstance(modal[0]).show();
